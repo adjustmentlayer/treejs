@@ -1,0 +1,73 @@
+
+body {
+    margin: 0; 
+}
+canvas {
+    display: block;
+}
+.main-panel{
+    display:flex;
+}
+.left-panel{
+    background-color:var(--light);
+}
+.left-panel__inner{
+    display:flex;
+    flex-direction:column;
+}
+.left-panel__circle{
+    position:relative;
+}
+.circle-buttons-container{
+    top:0;
+    left:55px;
+    position: absolute;
+    display:none;
+
+}
+
+.circle-icon{
+    position:relative;
+    display:flex;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border: solid 2px white;
+    align-items:center;
+    transform:rotate(45deg);
+}
+.ellipse-icon{
+    transform:rotate(0deg);
+    height:10px!important;
+}
+.circle-radius{
+    background-color:white;
+    width:50%;
+    height:2px;
+}
+.circle-diameter{
+    background-color:white;
+    width:100%;
+    height:2px;
+}
+.circle-point{
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background-color: white;
+}
+.circle-point:nth-child(1){
+    position:absolute;
+    left:-1px;
+    top:-1px;
+}
+.circle-point:nth-child(2){
+    position:absolute;
+    bottom:-1px;
+    right:-1px;
+}
+.circle-point:nth-child(3){
+    position:absolute;
+    right:-1px;
+    top:0;
+}

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/09179831a3.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <title>Treejs</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="main-panel">
+        <div class="left-panel">
+            <div class="left-panel__inner">
+                <div class="left-panel__circle ">
+                    <button class="draw-circle btn-primary btn rounded-0" data-toggle="tooltip" title="Окружность" >
+                        <div class="circle-icon "> </div>
+                    </button>
+                    <div class="circle-buttons-container shadow btn-group">
+                        <button class="btn btn-primary circle-button" id="0" data-toggle="tooltip" title="Центр и радиус">
+                            <div class="circle-icon">
+                                <div class="circle-radius"></div>
+                            </div>
+                        </button>
+                        <button class="btn btn-primary circle-button" id="1" data-toggle="tooltip" title="Диаметр">
+                            <div class="circle-icon">
+                                <div class="circle-diameter"></div>
+                            </div>
+                        </button>
+                        <button class="btn btn-primary circle-button" id="2" data-toggle="tooltip" title="3 точки">
+                            <div class="circle-icon">
+                                <div class="circle-point"></div>
+                                <div class="circle-point"></div>
+                                <div class="circle-point"></div>
+                            </div>
+                        </button>
+                        <button class="circle-button btn-primary btn" id="3" data-toggle="tooltip" title="Эллипс" >
+                            <div class="circle-icon ellipse-icon"> </div>
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script src="js/three.js"></script>
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+        let renderer, scene, camera, canvas;
+        let isCanvasDrawable = false, isMouseDown = false, isShiftDown =false,isObjectCreated = false;
+        let plane;
+        let raycaster, mouse;
+
+        let objects = [];
+        let circles = [];
+
+        let pressedPoint,pressedPoint2, difference, radius, diameter;
+
+        const DRAW_CIRCLE_BTN = document.querySelector(".draw-circle");
+        const CANVAS = document.querySelector("#canvas");
+        const CIRCLE_BUTTONS_CONTAINER = document.querySelector('.circle-buttons-container');
+        const CIRCLE_BUTTONS = document.querySelectorAll('.circle-button');
+
+
+        let iCircleButtons;
+        chosenFigure = 'circle';
+
+        const CENTER_AND_RADIUS = 0;
+        const DIAMETER = 1;
+        const THREE_POINTS = 2;
+        const ELLIPSE = 3;
+
+        init();
+        animate();
+        
+        function init(){
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            camera = new THREE.PerspectiveCamera(45,window.innerWidth / window.innerHeight, 1, 200 );
+            camera.position.set( 0, 0, 200);
+            camera.lookAt( 0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({canvas:CANVAS});
+            renderer.setSize( window.innerWidth, window.innerHeight );
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            pressedPoint = new THREE.Vector3();
+            pressedPoint2 = new THREE.Vector3();
+            difference = new THREE.Vector3();
+           
+
+            // plane
+            
+            let geometry = new THREE.PlaneBufferGeometry(1000, 500);
+            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+            scene.add(plane);
+            objects.push(plane);
+
+            DRAW_CIRCLE_BTN.addEventListener('click', onDrawCircleBtnClicked, false);
+            CANVAS.addEventListener('mousedown', onCanvasMouseDown, false);
+            CANVAS.addEventListener('mousemove', onCanvasMouseMove, false);
+            CANVAS.addEventListener('mouseup', onCanvasMouseUp, false);
+            CIRCLE_BUTTONS.forEach(function(elem, index) {
+                elem.addEventListener('click', onCircleButtonsClicked);
+            });
+
+            document.addEventListener( 'keydown', onDocumentKeyDown, false );
+            document.addEventListener( 'keyup', onDocumentKeyUp, false);
+
+            
+        }
+
+        
+
+        function onCircleButtonsClicked(){
+            iCircleButtons = Number(this.getAttribute("id"));
+            CIRCLE_BUTTONS_CONTAINER.style.display = "none";
+            isCanvasDrawable = true;
+        }
+        
+        function onDrawCircleBtnClicked(){
+            CIRCLE_BUTTONS_CONTAINER.style.display = "flex";
+            choosenFigure = "circle";
+            
+        }
+       
+        function onCanvasMouseDown(){
+
+            event.preventDefault();
+
+            if(isCanvasDrawable ){
+                    
+                switch(choosenFigure){
+
+                    case 'circle':
+                        switch(iCircleButtons){
+                            case THREE_POINTS:
+                                if(isObjectCreated){
+                                    isMouseDown = false;
+                                    return;
+                                }
+                                break;
+                            default:
+                                
+                                break;
+                        }
+                        
+                        mouse = getMousePos(CANVAS,event);
+                        raycaster.setFromCamera(mouse, camera);
+
+                        let intersects = raycaster.intersectObjects( objects );
+
+                        if(intersects.length > 0){
+                            let intersect = intersects[ 0 ];
+
+                            let geometry = new THREE.CircleGeometry( 0, 32 );
+                            geometry.vertices.shift();
+                            
+                            let material = new THREE.LineBasicMaterial( {linewidth: 1, color: 0xff00ff});
+                            let circle = new THREE.LineLoop( geometry, material );
+                            
+                            pressedPoint.copy(intersect.point);
+                            
+                            circle.position.copy( intersect.point ).add( intersect.face.normal );
+                            
+                            scene.add( circle );
+
+                            circles.push(circle);
+                            isMouseDown = true;
+                        }
+                        
+                        
+                    break;
+                    
+            }
+                
+
+                
+            }
+        }
+        function onCanvasMouseMove(){
+            console.log(isMouseDown);
+            if(circles.length>0 && isMouseDown){
+                
+                mouse = getMousePos(CANVAS,event);
+                raycaster.setFromCamera(mouse, camera);
+
+                let intersects = raycaster.intersectObjects( objects );
+
+                if(intersects.length > 0) {
+                    let intersect = intersects[ 0 ];
+                    difference.set(pressedPoint.x-intersect.point.x,
+                                   pressedPoint.y-intersect.point.y,
+                                   pressedPoint.x-intersect.point.z) ;
+                    radius = Math.sqrt(Math.pow(Math.abs(difference.x),2)+Math.pow(Math.abs(difference.y),2));
+
+                    switch(choosenFigure){
+                        case 'circle':
+                        
+                            switch(iCircleButtons){
+                                
+                                case CENTER_AND_RADIUS:
+                                    circles[circles.length-1].scale.set(radius,radius,0);
+                                    break; 
+                                case DIAMETER:
+                                    
+                                    circles[circles.length-1].scale.set(radius/2,radius/2,0);
+                                    circles[circles.length-1].position.set(pressedPoint.x-difference.x/2,pressedPoint.y-difference.y/2,0);
+                                    break;
+                                case THREE_POINTS:
+                                    if(!isObjectCreated){
+                                        circles[circles.length-1].scale.set(radius/2,radius/2,0);
+                                        circles[circles.length-1].position.set(pressedPoint.x-difference.x/2,pressedPoint.y-difference.y/2,0);
+                                    }else{
+                                        let calculatedCircle = getCircle([
+                                            {
+                                                x: pressedPoint.x ,
+                                                y: pressedPoint.y
+                                            },
+                                            {
+                                                x: pressedPoint2.x ,
+                                                y: pressedPoint2.y
+                                            },
+                                            {
+                                                x: intersect.point.x ,
+                                                y: intersect.point.y
+                                            }
+                                            ]);
+                                        circles[circles.length-1].scale.set(calculatedCircle[2],calculatedCircle[2],0);
+                                        circles[circles.length-1].position.set(calculatedCircle[0],calculatedCircle[1],0);
+                                    }
+                                    
+                                    break;
+                                case ELLIPSE:
+                                    circles[circles.length-1].scale.copy(difference);
+                                    if(isShiftDown){
+                                        circles[circles.length-1].scale.set(radius,radius,0);
+                                    }
+                                    break;
+                               }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function onCanvasMouseUp(){
+            switch(choosenFigure){
+                case 'circle':
+                
+                    switch(iCircleButtons){
+                        case THREE_POINTS:
+                            if(isObjectCreated){
+                                isObjectCreated = false;
+                                
+                            }else{
+                                isObjectCreated = true;
+                            }
+                            console.log(isObjectCreated);
+
+                            mouse = getMousePos(CANVAS,event);
+                            raycaster.setFromCamera(mouse, camera);
+
+                            let intersects = raycaster.intersectObjects( objects );
+
+                            if(intersects.length > 0){
+                                let intersect = intersects[ 0 ];
+                                pressedPoint2.copy(intersect.point);
+                                console.log(pressedPoint2);
+                            }
+                            break;
+                        default:
+                            isMouseDown = false;
+                            break;
+                    }
+                break;
+            }
+            
+        }
+
+        function animate(){
+            requestAnimationFrame( animate );
+            renderer.render( scene, camera );
+        }
+
+
+        function getMousePos(canvas, event) {
+            let rect = canvas.getBoundingClientRect();
+            return {
+                x:((event.clientX - rect.left) / canvas.width) * 2 -1,
+                y:-((event.clientY - rect.top) / canvas.height) * 2 + 1
+            }
+        }
+
+        function onDocumentKeyDown( event ) {
+            switch ( event.keyCode ) {
+                case 16: isShiftDown = true; break;
+            }
+        }
+
+        function onDocumentKeyUp( event ) {
+            switch ( event.keyCode ) {
+                case 16: isShiftDown = false; break;
+            }
+        }
+
+        
+        animate();
+
+        // с тремя точками-объектами вида {x: координата X, y: координата Y}
+        // на выходе получим X, Y, R - центр круга и его радиус
+        function getCircle(Z) {
+            var A = Z[1].x - Z[0].x;
+            var B = Z[1].y - Z[0].y;
+            var C = Z[2].x - Z[0].x;
+            var D = Z[2].y - Z[0].y;
+            var E = A * (Z[0].x + Z[1].x) + B * (Z[0].y + Z[1].y);
+            var F = C * (Z[0].x + Z[2].x) + D * (Z[0].y + Z[2].y);
+            var G = 2 * (A * (Z[2].y - Z[1].y) - B * (Z[2].x - Z[1].x));
+            if (G == 0) {
+                // если точки лежат на одной линии, 
+                // или их координаты совпадают,
+                // то окружность вписать не получится
+                return []; 
+            }
+            // координаты центра
+            var Cx = (D * E - B * F) / G;
+            var Cy = (A * F - C * E) / G;
+            // радиус
+            var R = Math.sqrt(Math.pow(Z[0].x - Cx, 2) + Math.pow(Z[0].y - Cy, 2));
+            // вернем параметры круга
+            return [Cx, Cy, R];
+        }
+
+    </script>
+    
+</body>
+</html>
